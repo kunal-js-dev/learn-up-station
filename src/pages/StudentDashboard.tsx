@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -131,12 +132,39 @@ const codingResources = [
 ];
 
 export default function StudentDashboard() {
+  const { user, profile } = useAuth();
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchFiles();
   }, []);
+
+  // Track online presence
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    const channel = supabase.channel("online-students", {
+      config: { presence: { key: user.id } },
+    });
+
+    channel
+      .on("presence", { event: "sync" }, () => {})
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            user_id: user.id,
+            full_name: profile.full_name || "",
+            email: profile.email || "",
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, profile]);
 
   const fetchFiles = async () => {
     const { data, error } = await supabase

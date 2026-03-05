@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Upload, Trash2, Users, FileText, Plus } from "lucide-react";
+import { Upload, Trash2, Users, FileText, Plus, Circle } from "lucide-react";
 
 interface FileRecord {
   id: string;
@@ -26,6 +26,7 @@ interface FileRecord {
 }
 
 interface StudentProfile {
+  user_id: string;
   full_name: string;
   email: string;
   created_at: string;
@@ -54,6 +55,7 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [students, setStudents] = useState<StudentProfile[]>([]);
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -66,10 +68,32 @@ export default function TeacherDashboard() {
     fetchData();
   }, []);
 
+  // Subscribe to student presence
+  useEffect(() => {
+    const channel = supabase.channel("online-students");
+
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const ids = new Set<string>();
+        Object.values(state).forEach((presences: any[]) => {
+          presences.forEach((p) => {
+            if (p.user_id) ids.add(p.user_id);
+          });
+        });
+        setOnlineUserIds(ids);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const fetchData = async () => {
     const [filesRes, studentsRes] = await Promise.all([
       supabase.from("files").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("full_name, email, created_at").eq("role", "student").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("user_id, full_name, email, created_at").eq("role", "student").order("created_at", { ascending: false }),
     ]);
 
     setFiles((filesRes.data as FileRecord[]) ?? []);
@@ -278,6 +302,19 @@ export default function TeacherDashboard() {
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-green-500/10 text-green-500">
+                    <Circle className="w-5 h-5 fill-current" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold font-display text-foreground">{onlineUserIds.size}</p>
+                    <p className="text-sm text-muted-foreground">Online Now</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-accent/10 text-accent">
                     <FileText className="w-5 h-5" />
                   </div>
@@ -302,14 +339,28 @@ export default function TeacherDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Status</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead className="hidden sm:table-cell">Joined</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {students.map((s, i) => (
-                        <TableRow key={i}>
+                      {students.map((s) => (
+                        <TableRow key={s.user_id}>
+                          <TableCell>
+                            {onlineUserIds.has(s.user_id) ? (
+                              <span className="flex items-center gap-1.5 text-green-500 text-xs font-medium">
+                                <Circle className="w-2.5 h-2.5 fill-current" />
+                                Online
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                                <Circle className="w-2.5 h-2.5" />
+                                Offline
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium text-foreground">{s.full_name || "—"}</TableCell>
                           <TableCell className="text-muted-foreground">{s.email}</TableCell>
                           <TableCell className="hidden sm:table-cell text-muted-foreground">{format(new Date(s.created_at), "MMM d, yyyy")}</TableCell>
