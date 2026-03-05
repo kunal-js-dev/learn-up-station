@@ -93,7 +93,7 @@ export default function TeacherDashboard() {
   const fetchData = async () => {
     const [filesRes, studentsRes] = await Promise.all([
       supabase.from("files").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("full_name, email, created_at").eq("role", "student").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("user_id, full_name, email, created_at").eq("role", "student").order("created_at", { ascending: false }),
     ]);
 
     setFiles((filesRes.data as FileRecord[]) ?? []);
