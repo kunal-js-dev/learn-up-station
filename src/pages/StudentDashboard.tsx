@@ -372,27 +372,29 @@ export default function StudentDashboard() {
             <h2 className="text-2xl font-display font-bold text-foreground">AI Productivity Tools</h2>
             <p className="text-muted-foreground mt-1">Explore AI tools to boost your productivity</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {aiToolsData.map((category) => (
-              <Card key={category.category} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className={`text-sm font-bold uppercase tracking-wide ${category.color}`}>
-                    {category.category}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <ul className="space-y-1.5">
-                    {category.tools.map((tool) => (
-                      <li key={tool} className="flex items-center gap-2 text-sm text-foreground">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                        {tool}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+             {aiToolsData.map((category) => (
+               <Card key={category.category} className="hover:shadow-md transition-shadow">
+                 <CardHeader className="pb-3">
+                   <CardTitle className={`text-sm font-bold uppercase tracking-wide ${category.color}`}>
+                     {category.category}
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent className="pt-0">
+                   <ul className="space-y-1.5">
+                     {category.tools.map((tool) => (
+                       <li key={tool.name} className="flex items-center gap-2 text-sm text-foreground">
+                         <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                         <a href={tool.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline cursor-pointer">
+                           {tool.name}
+                         </a>
+                       </li>
+                     ))}
+                   </ul>
+                 </CardContent>
+               </Card>
+             ))}
+           </div>
         </TabsContent>
 
         {/* Coding Resources Tab */}
