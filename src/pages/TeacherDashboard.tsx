@@ -54,6 +54,7 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [students, setStudents] = useState<StudentProfile[]>([]);
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -64,6 +65,28 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // Subscribe to student presence
+  useEffect(() => {
+    const channel = supabase.channel("online-students");
+
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const ids = new Set<string>();
+        Object.values(state).forEach((presences: any[]) => {
+          presences.forEach((p) => {
+            if (p.user_id) ids.add(p.user_id);
+          });
+        });
+        setOnlineUserIds(ids);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchData = async () => {
