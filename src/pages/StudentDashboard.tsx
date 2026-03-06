@@ -5,7 +5,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, File, Film, Archive, Calendar, HardDrive, Bot, Code, ExternalLink } from "lucide-react";
+import { FileText, Download, File, Film, Archive, Calendar, HardDrive, Bot, Code, ExternalLink, Code2 } from "lucide-react";
+import CodeEditor from "@/components/CodeEditor";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
