@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Upload, Trash2, Users, FileText, Plus, Circle } from "lucide-react";
+import { Upload, Trash2, Users, FileText, Plus, Circle, Code2 } from "lucide-react";
+import CodeReview from "@/components/CodeReview";
 
 interface FileRecord {
   id: string;
@@ -194,6 +195,9 @@ export default function TeacherDashboard() {
           <TabsTrigger value="students" className="gap-2">
             <Users className="w-4 h-4" /> Students
           </TabsTrigger>
+          <TabsTrigger value="code-review" className="gap-2">
+            <Code2 className="w-4 h-4" /> Code Review
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload">
@@ -372,6 +376,10 @@ export default function TeacherDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="code-review">
+          <CodeReview />
         </TabsContent>
       </Tabs>
     </DashboardLayout>
