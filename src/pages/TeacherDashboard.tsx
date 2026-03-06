@@ -377,6 +377,10 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="code-review">
+          <CodeReview />
+        </TabsContent>
       </Tabs>
     </DashboardLayout>
   );
