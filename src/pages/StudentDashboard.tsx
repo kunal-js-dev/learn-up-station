@@ -295,7 +295,7 @@ export default function StudentDashboard() {
   return (
     <DashboardLayout>
       <Tabs defaultValue="materials" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="materials" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Materials
@@ -307,6 +307,10 @@ export default function StudentDashboard() {
           <TabsTrigger value="coding" className="flex items-center gap-2">
             <Code className="w-4 h-4" />
             Coding
+          </TabsTrigger>
+          <TabsTrigger value="editor" className="flex items-center gap-2">
+            <Code2 className="w-4 h-4" />
+            Editor
           </TabsTrigger>
         </TabsList>
 
