@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext, ReactNode } from "react";
+import { useEffect, useState, createContext, useContext, ReactNode, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -28,26 +28,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (uid: string) => {
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid)
-      .single();
+  const fetchProfile = useCallback(async (uid: string) => {
+    // Parallelize both queries
+    const [roleRes, profileRes] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", uid).single(),
+      supabase.from("profiles").select("full_name, email").eq("user_id", uid).single(),
+    ]);
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name, email")
-      .eq("user_id", uid)
-      .single();
-
-    setRole((roleData?.role as UserRole) ?? null);
-    setProfile(profileData ?? null);
-  };
+    setRole((roleRes.data?.role as UserRole) ?? null);
+    setProfile(profileRes.data ?? null);
+  }, []);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Get initial session first
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) await fetchProfile(u.id);
+      if (mounted) setLoading(false);
+    });
+
+    // Then listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
         const u = session?.user ?? null;
         setUser(u);
         if (u) {
@@ -56,28 +63,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRole(null);
           setProfile(null);
         }
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        await fetchProfile(u.id);
-      }
-      setLoading(false);
-    });
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     setRole(null);
     setProfile(null);
-  };
+  }, []);
 
   return (
     <AuthCtx.Provider value={{ user, role, profile, loading, signOut }}>
