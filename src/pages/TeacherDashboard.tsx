@@ -195,6 +195,9 @@ export default function TeacherDashboard() {
           <TabsTrigger value="students" className="gap-2">
             <Users className="w-4 h-4" /> Students
           </TabsTrigger>
+          <TabsTrigger value="code-review" className="gap-2">
+            <Code2 className="w-4 h-4" /> Code Review
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload">
