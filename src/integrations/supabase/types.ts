@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      code_submissions: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          language: string
+          output: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          language: string
+          output?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          language?: string
+          output?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       files: {
         Row: {
           created_at: string
