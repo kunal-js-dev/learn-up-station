@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Upload, Trash2, Users, FileText, Plus, Circle } from "lucide-react";
+import { Upload, Trash2, Users, FileText, Plus, Circle, Code2 } from "lucide-react";
+import CodeReview from "@/components/CodeReview";
 
 interface FileRecord {
   id: string;
