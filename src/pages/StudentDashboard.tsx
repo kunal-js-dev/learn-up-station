@@ -432,6 +432,10 @@ export default function StudentDashboard() {
             ))}
           </div>
         </TabsContent>
+        {/* Code Editor Tab */}
+        <TabsContent value="editor">
+          <CodeEditor />
+        </TabsContent>
       </Tabs>
     </DashboardLayout>
   );
