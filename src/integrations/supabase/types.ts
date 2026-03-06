@@ -18,6 +18,8 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          feedback: string | null
+          grade: string | null
           id: string
           language: string
           output: string | null
@@ -27,6 +29,8 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
+          feedback?: string | null
+          grade?: string | null
           id?: string
           language: string
           output?: string | null
@@ -36,6 +40,8 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
+          feedback?: string | null
+          grade?: string | null
           id?: string
           language?: string
           output?: string | null
