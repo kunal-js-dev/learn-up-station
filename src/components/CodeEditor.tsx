@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Send, Terminal, Code2, Loader2, AlertTriangle } from "lucide-react";
+import { Play, Send, Terminal, Code2, Loader2, AlertTriangle, ExternalLink, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 const LANGUAGES = [
@@ -53,6 +53,30 @@ const BOILERPLATE: Record<string, string> = {
   bash: 'echo "Hello World!"',
 };
 
+// Programiz online compiler URLs by language
+const PROGRAMIZ_URLS: Record<string, string> = {
+  python: "https://www.programiz.com/python-programming/online-compiler/",
+  java: "https://www.programiz.com/java-programming/online-compiler/",
+  c: "https://www.programiz.com/c-programming/online-compiler/",
+  cpp: "https://www.programiz.com/cpp-programming/online-compiler/",
+  csharp: "https://www.programiz.com/csharp-programming/online-compiler/",
+  javascript: "https://www.programiz.com/javascript/online-compiler/",
+  r: "https://www.programiz.com/r/online-compiler/",
+  go: "https://www.programiz.com/golang/online-compiler/",
+  kotlin: "https://www.programiz.com/kotlin-programming/online-compiler/",
+  swift: "https://www.programiz.com/swift/online-compiler/",
+  rust: "https://www.programiz.com/rust/online-compiler/",
+  dart: "https://www.programiz.com/dart/online-compiler/",
+  ruby: "https://www.programiz.com/ruby/online-compiler/",
+  php: "https://www.programiz.com/php/online-compiler/",
+  scala: "https://www.programiz.com/scala/online-compiler/",
+  typescript: "https://www.programiz.com/typescript/online-compiler/",
+  bash: "https://www.programiz.com/bash/online-compiler/",
+  lua: "https://www.programiz.com/lua/online-compiler/",
+  perl: "https://www.programiz.com/perl/online-compiler/",
+  html: "https://www.programiz.com/html/online-compiler/",
+};
+
 export default function CodeEditor() {
   const { user } = useAuth();
   const [language, setLanguage] = useState("html");
@@ -63,7 +87,10 @@ export default function CodeEditor() {
   const [htmlOutput, setHtmlOutput] = useState("");
   const [isCompiling, setIsCompiling] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
@@ -94,6 +121,40 @@ export default function CodeEditor() {
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      toast.error("Please select image files only");
+      return;
+    }
+    const newImages = [...uploadedImages, ...imageFiles].slice(0, 5);
+    setUploadedImages(newImages);
+    const previews = newImages.map((f) => URL.createObjectURL(f));
+    setImagePreviews(previews);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImage = (index: number) => {
+    URL.revokeObjectURL(imagePreviews[index]);
+    setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImages = async (): Promise<string[]> => {
+    if (!user || uploadedImages.length === 0) return [];
+    const urls: string[] = [];
+    for (const file of uploadedImages) {
+      const filePath = `${user.id}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from("submission-images")
+        .upload(filePath, file);
+      if (error) throw new Error(`Image upload failed: ${error.message}`);
+      urls.push(filePath);
+    }
+    return urls;
+  };
+
   const processResult = (data: any) => {
     if (data.isHtml) {
       setHtmlOutput(data.output);
@@ -112,7 +173,6 @@ export default function CodeEditor() {
     if (!code.trim()) { toast.error("Please write some code first"); return; }
     setIsCompiling(true);
     setOutput(""); setStderr(""); setHtmlOutput(""); setIsCompileError(false);
-
     try {
       const { data, error } = await supabase.functions.invoke("compile-code", {
         body: { language, code },
@@ -126,11 +186,19 @@ export default function CodeEditor() {
     }
   };
 
+  const handleOpenProgramiz = () => {
+    const url = PROGRAMIZ_URLS[language];
+    if (url) {
+      window.open(url, "_blank");
+    } else {
+      toast.error("Programiz doesn't support this language");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!code.trim()) { toast.error("Please write some code first"); return; }
     if (!user) { toast.error("You must be logged in to submit"); return; }
     setIsSubmitting(true);
-
     try {
       const { data, error } = await supabase.functions.invoke("compile-code", {
         body: { language, code },
@@ -142,15 +210,23 @@ export default function CodeEditor() {
         ? "[HTML Output]"
         : (data.output || "") + (data.stderr ? "\n" + data.stderr : "");
 
+      // Upload images if any
+      const imageUrls = await uploadImages();
+
       const { error: insertError } = await supabase.from("code_submissions").insert({
         user_id: user.id,
         language,
         code,
         output: compiledOutput,
         status: "submitted",
+        image_url: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
       });
       if (insertError) throw insertError;
       toast.success("Code compiled and submitted successfully!");
+      // Clear images after successful submit
+      imagePreviews.forEach((p) => URL.revokeObjectURL(p));
+      setUploadedImages([]);
+      setImagePreviews([]);
     } catch (err: any) {
       toast.error("Submission failed: " + (err.message || "Unknown error"));
     } finally {
@@ -206,10 +282,49 @@ export default function CodeEditor() {
               className="w-full h-80 font-mono text-sm bg-muted/50 border border-border rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground placeholder:text-muted-foreground"
               placeholder="Start typing your code here..."
             />
+
+            {/* Image Upload Area */}
+            <div className="mt-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-muted-foreground"
+                >
+                  <ImagePlus className="w-4 h-4 mr-1" />
+                  Attach Images ({uploadedImages.length}/5)
+                </Button>
+                {imagePreviews.map((src, i) => (
+                  <div key={i} className="relative w-10 h-10 rounded border border-border overflow-hidden group">
+                    <img src={src} alt={`upload-${i}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removeImage(i)}
+                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="flex gap-2 mt-3">
               <Button onClick={handleCompile} disabled={isCompiling || isSubmitting} className="flex-1" variant="outline">
                 {isCompiling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
                 Compile
+              </Button>
+              <Button onClick={handleOpenProgramiz} variant="outline" className="shrink-0" title="Open in Programiz">
+                <ExternalLink className="w-4 h-4" />
               </Button>
               <Button onClick={handleSubmit} disabled={isCompiling || isSubmitting} className="flex-1">
                 {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}

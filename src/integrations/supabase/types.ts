@@ -21,6 +21,7 @@ export type Database = {
           feedback: string | null
           grade: string | null
           id: string
+          image_url: string | null
           language: string
           output: string | null
           status: string
@@ -32,6 +33,7 @@ export type Database = {
           feedback?: string | null
           grade?: string | null
           id?: string
+          image_url?: string | null
           language: string
           output?: string | null
           status?: string
@@ -43,6 +45,7 @@ export type Database = {
           feedback?: string | null
           grade?: string | null
           id?: string
+          image_url?: string | null
           language?: string
           output?: string | null
           status?: string
