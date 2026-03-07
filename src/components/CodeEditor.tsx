@@ -4,21 +4,30 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Send, Terminal, Code2, Loader2 } from "lucide-react";
+import { Play, Send, Terminal, Code2, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 const LANGUAGES = [
-  { value: "html", label: "HTML" },
-  { value: "javascript", label: "JavaScript" },
-  { value: "typescript", label: "TypeScript" },
-  { value: "python", label: "Python" },
-  { value: "java", label: "Java" },
-  { value: "c", label: "C" },
-  { value: "cpp", label: "C++" },
-  { value: "csharp", label: "C#" },
-  { value: "ruby", label: "Ruby" },
-  { value: "go", label: "Go" },
-  { value: "php", label: "PHP" },
+  { value: "html", label: "HTML", category: "Markup" },
+  { value: "javascript", label: "JavaScript", category: "Interpreted" },
+  { value: "typescript", label: "TypeScript", category: "Compiled" },
+  { value: "python", label: "Python", category: "Interpreted" },
+  { value: "java", label: "Java", category: "Compiled" },
+  { value: "c", label: "C", category: "Compiled" },
+  { value: "cpp", label: "C++", category: "Compiled" },
+  { value: "csharp", label: "C#", category: "Compiled" },
+  { value: "go", label: "Go", category: "Compiled" },
+  { value: "rust", label: "Rust", category: "Compiled" },
+  { value: "kotlin", label: "Kotlin", category: "Compiled" },
+  { value: "swift", label: "Swift", category: "Compiled" },
+  { value: "scala", label: "Scala", category: "Compiled" },
+  { value: "dart", label: "Dart", category: "Interpreted" },
+  { value: "ruby", label: "Ruby", category: "Interpreted" },
+  { value: "php", label: "PHP", category: "Interpreted" },
+  { value: "perl", label: "Perl", category: "Interpreted" },
+  { value: "lua", label: "Lua", category: "Interpreted" },
+  { value: "r", label: "R", category: "Interpreted" },
+  { value: "bash", label: "Bash", category: "Interpreted" },
 ];
 
 const BOILERPLATE: Record<string, string> = {
@@ -30,9 +39,18 @@ const BOILERPLATE: Record<string, string> = {
   c: '#include <stdio.h>\n\nint main() {\n  printf("Hello World!\\n");\n  return 0;\n}',
   cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hello World!" << endl;\n  return 0;\n}',
   csharp: 'using System;\n\nclass Program {\n  static void Main() {\n    Console.WriteLine("Hello World!");\n  }\n}',
-  ruby: 'puts "Hello World!"',
   go: 'package main\n\nimport "fmt"\n\nfunc main() {\n  fmt.Println("Hello World!")\n}',
+  rust: 'fn main() {\n  println!("Hello World!");\n}',
+  kotlin: 'fun main() {\n  println("Hello World!")\n}',
+  swift: 'print("Hello World!")',
+  scala: 'object Main extends App {\n  println("Hello World!")\n}',
+  dart: 'void main() {\n  print("Hello World!");\n}',
+  ruby: 'puts "Hello World!"',
   php: '<?php\necho "Hello World!";\n?>',
+  perl: 'print "Hello World!\\n";',
+  lua: 'print("Hello World!")',
+  r: 'cat("Hello World!\\n")',
+  bash: 'echo "Hello World!"',
 };
 
 export default function CodeEditor() {
@@ -40,13 +58,13 @@ export default function CodeEditor() {
   const [language, setLanguage] = useState("html");
   const [code, setCode] = useState(BOILERPLATE.html);
   const [output, setOutput] = useState("");
+  const [stderr, setStderr] = useState("");
+  const [isCompileError, setIsCompileError] = useState(false);
   const [htmlOutput, setHtmlOutput] = useState("");
   const [isCompiling, setIsCompiling] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const internalChangeRef = useRef(false);
 
-  // Block paste from outside — allow only internal typing
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
     toast.error("Pasting from outside is disabled. Please type your code.");
@@ -56,7 +74,9 @@ export default function CodeEditor() {
     setLanguage(val);
     setCode(BOILERPLATE[val] || "");
     setOutput("");
+    setStderr("");
     setHtmlOutput("");
+    setIsCompileError(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -74,29 +94,31 @@ export default function CodeEditor() {
     }
   };
 
-  const handleCompile = async () => {
-    if (!code.trim()) {
-      toast.error("Please write some code first");
-      return;
+  const processResult = (data: any) => {
+    if (data.isHtml) {
+      setHtmlOutput(data.output);
+      setOutput("");
+      setStderr("");
+      setIsCompileError(false);
+    } else {
+      setHtmlOutput("");
+      setOutput(data.output || "");
+      setStderr(data.stderr || "");
+      setIsCompileError(!!data.compileError);
     }
+  };
+
+  const handleCompile = async () => {
+    if (!code.trim()) { toast.error("Please write some code first"); return; }
     setIsCompiling(true);
-    setOutput("");
-    setHtmlOutput("");
+    setOutput(""); setStderr(""); setHtmlOutput(""); setIsCompileError(false);
 
     try {
       const { data, error } = await supabase.functions.invoke("compile-code", {
         body: { language, code },
       });
-
       if (error) throw error;
-
-      if (data.isHtml) {
-        setHtmlOutput(data.output);
-        setOutput("");
-      } else {
-        setOutput(data.output + (data.stderr ? "\n" + data.stderr : ""));
-        setHtmlOutput("");
-      }
+      processResult(data);
     } catch (err: any) {
       toast.error("Compilation failed: " + (err.message || "Unknown error"));
     } finally {
@@ -105,34 +127,21 @@ export default function CodeEditor() {
   };
 
   const handleSubmit = async () => {
-    if (!code.trim()) {
-      toast.error("Please write some code first");
-      return;
-    }
-    if (!user) {
-      toast.error("You must be logged in to submit");
-      return;
-    }
-
+    if (!code.trim()) { toast.error("Please write some code first"); return; }
+    if (!user) { toast.error("You must be logged in to submit"); return; }
     setIsSubmitting(true);
 
-    // Compile first
     try {
       const { data, error } = await supabase.functions.invoke("compile-code", {
         body: { language, code },
       });
-
       if (error) throw error;
+      processResult(data);
 
-      const compiledOutput = data.isHtml ? "[HTML Output]" : (data.output || "") + (data.stderr ? "\n" + data.stderr : "");
+      const compiledOutput = data.isHtml
+        ? "[HTML Output]"
+        : (data.output || "") + (data.stderr ? "\n" + data.stderr : "");
 
-      if (data.isHtml) {
-        setHtmlOutput(data.output);
-      } else {
-        setOutput(compiledOutput);
-      }
-
-      // Save to database
       const { error: insertError } = await supabase.from("code_submissions").insert({
         user_id: user.id,
         language,
@@ -140,9 +149,7 @@ export default function CodeEditor() {
         output: compiledOutput,
         status: "submitted",
       });
-
       if (insertError) throw insertError;
-
       toast.success("Code compiled and submitted successfully!");
     } catch (err: any) {
       toast.error("Submission failed: " + (err.message || "Unknown error"));
@@ -150,6 +157,8 @@ export default function CodeEditor() {
       setIsSubmitting(false);
     }
   };
+
+  const currentLang = LANGUAGES.find((l) => l.value === language);
 
   return (
     <div className="space-y-4">
@@ -166,6 +175,11 @@ export default function CodeEditor() {
               <CardTitle className="text-base flex items-center gap-2">
                 <Code2 className="w-4 h-4" />
                 Editor
+                {currentLang && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    {currentLang.category}
+                  </span>
+                )}
               </CardTitle>
               <Select value={language} onValueChange={handleLanguageChange}>
                 <SelectTrigger className="w-40">
@@ -193,29 +207,12 @@ export default function CodeEditor() {
               placeholder="Start typing your code here..."
             />
             <div className="flex gap-2 mt-3">
-              <Button
-                onClick={handleCompile}
-                disabled={isCompiling || isSubmitting}
-                className="flex-1"
-                variant="outline"
-              >
-                {isCompiling ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Play className="w-4 h-4 mr-2" />
-                )}
+              <Button onClick={handleCompile} disabled={isCompiling || isSubmitting} className="flex-1" variant="outline">
+                {isCompiling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
                 Compile
               </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={isCompiling || isSubmitting}
-                className="flex-1"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4 mr-2" />
-                )}
+              <Button onClick={handleSubmit} disabled={isCompiling || isSubmitting} className="flex-1">
+                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                 Submit
               </Button>
             </div>
@@ -226,8 +223,12 @@ export default function CodeEditor() {
         <Card className="flex flex-col">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Terminal className="w-4 h-4" />
-              Output
+              {isCompileError ? (
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+              ) : (
+                <Terminal className="w-4 h-4" />
+              )}
+              {isCompileError ? "Compilation Error" : "Output"}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 pt-0">
@@ -239,9 +240,22 @@ export default function CodeEditor() {
                 title="HTML Output"
               />
             ) : (
-              <pre className="w-full h-80 font-mono text-sm bg-muted/50 border border-border rounded-lg p-4 overflow-auto text-foreground whitespace-pre-wrap">
-                {output || "Click 'Compile' to see output here..."}
-              </pre>
+              <div className="w-full h-80 font-mono text-sm bg-muted/50 border border-border rounded-lg p-4 overflow-auto">
+                {isCompileError && stderr ? (
+                  <pre className="text-destructive whitespace-pre-wrap">{stderr}</pre>
+                ) : (
+                  <>
+                    <pre className="text-foreground whitespace-pre-wrap">
+                      {output || "Click 'Compile' to see output here..."}
+                    </pre>
+                    {stderr && (
+                      <pre className="text-destructive whitespace-pre-wrap mt-2 pt-2 border-t border-border">
+                        {stderr}
+                      </pre>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
